@@ -6,7 +6,7 @@ COLOR_B EQU #40 + 8 * #1
 COLOR_R EQU #40 + 8 * #2
 
 	ORG START
-	di
+;	di
 	LD SP, #FFFF
 	XOR A
 	OUT (#FE), A
@@ -39,14 +39,19 @@ COLOR_R EQU #40 + 8 * #2
 	
 	halt
 
+	CALL SCROLL_WAVE
+	JP START
+	
+
+
 ; Print 8 wave rows
 WAVE_COLOR_1 DB 0
 WAVE_COLOR_2 DB 0
 WAVE:
 	LD IXH, #80
-	LD DE, 0
 
 WAVE_LINE_LOOP:
+	LD DE, WAVE_DATA
 	LD C, 32
 WAVE_CHAR_LOOP:
 	LD A, (DE)
@@ -67,18 +72,31 @@ PUT_COLOR:
 	INC HL
 	DEC C
 	JP NZ, WAVE_CHAR_LOOP
-	
+
+; going to the next line until all 8 rows are printed
 	LD A, IXH
 	SRL A
 	OR 0
 	LD IXH, A
 	JP NZ, WAVE_LINE_LOOP
 
-; restore DE to the HL + 1
+; all done, so restore DE to the HL + 1
 	LD E, L
 	LD D, H
 	INC DE
 	
 	RET
+
+SCROLL_WAVE:
+	LD HL, WAVE_DATA + 1
+	LD DE, WAVE_DATA
+	LD A, (DE)
+	LD BC, 63
+	LDIR
+	LD (DE), A
+	RET
+
+WAVE_DATA:
+	INCBIN "wave.png.bin"
 
 	SAVESNA "main.sna", START
