@@ -5,37 +5,39 @@ COLOR_W EQU #40 + 8 * #7
 COLOR_B EQU #40 + 8 * #1
 COLOR_R EQU #40 + 8 * #2
 
+COLOR_K EQU 0 ; black
+
 	ORG START
 ;	di
 	LD SP, #FFFF
 	XOR A
 	OUT (#FE), A
-;W
+
 	ld hl, 16384 + 6144
-	ld de, 16384 + 6144 + 1
-	ld bc, 2 * 32
-	ld (hl), COLOR_W
-	ldir
-	
+;BLACK/WHITE
+	LD A, COLOR_K
+	LD (WAVE_COLOR_1), A
+	LD A, COLOR_W
+	LD (WAVE_COLOR_2), A
+	CALL WAVE
+;WHITE/BLUE
 	LD A, COLOR_W
 	LD (WAVE_COLOR_1), A
 	LD A, COLOR_B
 	LD (WAVE_COLOR_2), A
 	CALL WAVE
-;B
-	ld (hl), COLOR_B
-	ld bc, 4 * 32
-	ldir
-	
+;BLUE/RED
 	LD A, COLOR_B
 	LD (WAVE_COLOR_1), A
 	LD A, COLOR_R
 	LD (WAVE_COLOR_2), A
 	CALL WAVE
-;R
-	ld (hl), COLOR_R
-	ld bc, 2 * 32 - 1
-	ldir
+;RED/BLACK
+	LD A, COLOR_R
+	LD (WAVE_COLOR_1), A
+	LD A, COLOR_K
+	LD (WAVE_COLOR_2), A
+	CALL WAVE
 	
 	halt
 
@@ -48,11 +50,12 @@ COLOR_R EQU #40 + 8 * #2
 WAVE_COLOR_1 DB 0
 WAVE_COLOR_2 DB 0
 WAVE:
-	LD IXH, #80
+	LD IXH, #40
 
 WAVE_LINE_LOOP:
-	LD DE, WAVE_DATA
-	LD C, 32
+	LD DE, FLAG_DATA
+	LD C, 31
+	INC HL
 WAVE_CHAR_LOOP:
 	LD A, (DE)
 	AND IXH
@@ -76,7 +79,7 @@ PUT_COLOR:
 ; going to the next line until all 8 rows are printed
 	LD A, IXH
 	SRL A
-	OR 0
+	AND #FE
 	LD IXH, A
 	JP NZ, WAVE_LINE_LOOP
 
@@ -88,14 +91,52 @@ PUT_COLOR:
 	RET
 
 SCROLL_WAVE:
+	; scrolling flag tail
 	LD HL, WAVE_DATA + 1
 	LD DE, WAVE_DATA
 	LD A, (DE)
 	LD BC, 63
 	LDIR
 	LD (DE), A
-	RET
+	
+	; calculating flag head
+	LD C, 1 ; two passes since we have 2 stabilizing columns
+	LD HL, WAVE_DATA - 1 ; last byte of head
+	LD DE, WAVE_DATA
 
+INTERPOLATE_HEAD:
+	LD A, (DE) ; first byte of tail
+	
+	CP #F0 ; center position, no additional shit is required
+	JP Z, SET_HEAD_POS
+	CP #71 ; center position, no additional shit is required
+	JP Z, SET_HEAD_POS
+	CP #E0 ; center position, no additional shit is required
+	JP Z, SET_HEAD_POS
+
+	AND #0F
+	LD A, (DE) ; doing here since it does not change any flags
+	JP NZ, FLAG_WENT_DOWN:
+FLAG_WENT_UP:
+	SRA A
+	JP SET_HEAD_POS
+FLAG_WENT_DOWN:
+	SLA A
+
+SET_HEAD_POS;
+	LD (HL), A
+	
+	DEC C
+	RET Z
+
+	DEC HL
+	DEC DE
+
+	JP INTERPOLATE_HEAD
+
+FLAG_DATA:
+	DB #F0
+	DB 0
 WAVE_DATA:
 	INCBIN "wave.png.bin"
 
