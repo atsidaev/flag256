@@ -10,12 +10,13 @@ if len(pixels) != 8:
 
 wave_data = []
 
-for i in range(0, 64):
+width = 48
+
+for i in range(0, width):
 	b = ""
 	for j in range(0, 8):
 		b += "1" if pixels[j][i] != 0 else "0"
-	wave_data.append(b)
+	wave_data.append(int(b, 2))
 
-#newFile = open(sys.argv[1] + ".bin", "wb")
-#newFile.write(struct.pack('64B', *wave_data))
-print wave_data
+newFile = open(sys.argv[1] + ".bin", "wb")
+newFile.write(struct.pack(str(width) + 'B', *wave_data))

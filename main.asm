@@ -8,53 +8,54 @@ COLOR_R EQU #40 + 8 * #2
 COLOR_K EQU 0 ; black
 
 	ORG START
-;	di
+	
+	LD A, 2
+	CALL #1601
+	
+	LD A, 'A'
+	RST #10
+	
+	;ld	hl, #060C
+	;ld	de, #0114
+	;call	#03b5
+	;JP START
+	
+	di
 	LD SP, #FFFF
+
+	; black border
 	XOR A
 	OUT (#FE), A
+
+MAIN_LOOP:
+	; point HL to attributes start
 	ld hl, 16384 + 6144
-;BLACK/WHITE
-	LD A, COLOR_K
-	LD (WAVE_COLOR_1), A
-	LD A, COLOR_W
-	LD (WAVE_COLOR_2), A
-	CALL WAVE
-;WHITE/BLUE
-	LD A, COLOR_W
-	LD (WAVE_COLOR_1), A
-	LD A, COLOR_B
-	LD (WAVE_COLOR_2), A
-	CALL WAVE
-;BLUE/RED
-	LD A, COLOR_B
-	LD (WAVE_COLOR_1), A
-	LD A, COLOR_R
-	LD (WAVE_COLOR_2), A
-	CALL WAVE
-;RED/BLACK
-	LD A, COLOR_R
-	LD (WAVE_COLOR_1), A
-	LD A, COLOR_K
-	LD (WAVE_COLOR_2), A
-	CALL WAVE
 	
-	halt
-	halt
+	; drawing flag stripes
+	LD IY, COLORS
+	CALL WAVE ;BLACK/WHITE
+	CALL WAVE ;WHITE/BLUE
+	CALL WAVE ;BLUE/RED
+	CALL WAVE ;RED/BLACK
+
+; halt (may be replaced with real HALT)
+	LD BC, 700
+PAUSE_LOOP:
+	DEC BC
+	LD A, B
+	OR C
+	JP NZ, PAUSE_LOOP
 
 	CALL SCROLL_WAVE
-	JP START
-	
-
+	JP MAIN_LOOP
 
 ; Print 8 wave rows
-WAVE_COLOR_1 DB 0
-WAVE_COLOR_2 DB 0
 WAVE:
 	LD IXH, #40
 
 WAVE_LINE_LOOP:
 	LD DE, FLAG_DATA
-	LD C, 31
+	LD C, 24
 	INC HL
 WAVE_CHAR_LOOP:
 	LD A, (DE)
@@ -62,10 +63,10 @@ WAVE_CHAR_LOOP:
 	JR Z, PUT_COLOR2
 	
 PUT_COLOR1:
-	LD A, (WAVE_COLOR_1)
+	LD A, (IY)
 	JR PUT_COLOR
 PUT_COLOR2:
-	LD A, (WAVE_COLOR_2)
+	LD A, (IY+1)
 
 PUT_COLOR:
 	LD (HL), A
@@ -75,6 +76,11 @@ PUT_COLOR:
 	INC HL
 	DEC C
 	JP NZ, WAVE_CHAR_LOOP
+
+	DUP 7
+	INC DE
+	INC HL
+	EDUP
 
 ; going to the next line until all 8 rows are printed
 	LD A, IXH
@@ -88,54 +94,28 @@ PUT_COLOR:
 	LD D, H
 	INC DE
 	
-	RET
-
-CHANGE_SCROLL_DIRECTION:
-	LD A, (SCROLL_DIRECTION)
-	XOR #FF
-	LD (SCROLL_DIRECTION), A
+	; Switching to the next color pair
+	INC IY
+	
 	RET
 
 SCROLL_WAVE:
 	; scrolling flag tail
-	
-	; first check if we need to change scroll direction
-	; next byte from ROM
-	INC IY
-	LD A, IYH
-	AND #7F
-	LD IYH, A
-	LD A, (IY)
-	AND #03
-	CP 2
-	CALL Z, CHANGE_SCROLL_DIRECTION
-	LD A, (SCROLL_DIRECTION)
-	AND 1
-	JP Z, SCROLL_WAVE_LEFT
-SCROLL_WAVE_RIGHT:
-	LD HL, WAVE_DATA + 62
-	LD DE, WAVE_DATA + 63
+	LD HL, WAVE_DATA + WAVE_DATA_LENGTH - 2
+	LD DE, WAVE_DATA + WAVE_DATA_LENGTH - 1
 	LD A, (DE)
-	LD BC, 63
+	LD BC, WAVE_DATA_LENGTH - 1
 	LDDR
-
-	JR SCROLL_WAVE_END
-SCROLL_WAVE_LEFT:
-	LD HL, WAVE_DATA + 1
-	LD DE, WAVE_DATA
-	LD A, (DE)
-	LD BC, 63
-	LDIR
-
 SCROLL_WAVE_END:
 	; restoring first affected byte of scrolled array
 	LD (DE), A
 	
 	; calculating flag head
-	LD C, 1 ; two passes since we have 2 stabilizing columns
 	LD HL, WAVE_DATA - 1 ; last byte of head
 	LD DE, WAVE_DATA
 
+; first flag column is constant
+; second flag column is in intermediate position between waving part and the constant part
 INTERPOLATE_HEAD:
 	LD A, (DE) ; first byte of tail
 	
@@ -147,7 +127,7 @@ INTERPOLATE_HEAD:
 	JP Z, SET_HEAD_POS
 
 	AND #0F
-	LD A, (DE) ; doing here since it does not change any flags
+	LD A, (DE) ; doing it here since this does not change any flags
 	JP NZ, FLAG_WENT_DOWN:
 FLAG_WENT_UP:
 	SRA A
@@ -158,19 +138,16 @@ FLAG_WENT_DOWN:
 SET_HEAD_POS;
 	LD (HL), A
 	
-	DEC C
-	RET Z
+	RET
 
-	DEC HL
-	DEC DE
-
-	JP INTERPOLATE_HEAD
-
-SCROLL_DIRECTION: DB 0
+COLORS: DB COLOR_K, COLOR_W, COLOR_B, COLOR_R, COLOR_K
 FLAG_DATA:
 	DB #F0
 	DB 0
 WAVE_DATA:
 	INCBIN "wave.png.bin"
+WAVE_DATA_END:
+
+WAVE_DATA_LENGTH EQU (WAVE_DATA_END - WAVE_DATA)
 
 	SAVESNA "main.sna", START
