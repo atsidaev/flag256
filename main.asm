@@ -9,12 +9,7 @@ COLOR_K EQU 0 ; black
 
 	ORG START
 	
-	LD A, 2
-	CALL #1601
-	
-	LD A, 'A'
-	RST #10
-	
+
 	;ld	hl, #060C
 	;ld	de, #0114
 	;call	#03b5
@@ -27,6 +22,14 @@ COLOR_K EQU 0 ; black
 	XOR A
 	OUT (#FE), A
 
+	; channel 2 for print
+	;CALL #0D6B
+	LD A, 2
+	CALL #1601
+	LD DE, BIRD
+	LD BC, 10
+	CALL #203C ; PR-STRING
+	JR ENTRY
 MAIN_LOOP:
 	; point HL to attributes start
 	ld hl, 16384 + 6144
@@ -39,7 +42,31 @@ MAIN_LOOP:
 	CALL WAVE ;RED/BLACK
 
 ; halt (may be replaced with real HALT)
-	LD BC, 700
+	LD BC, (MUSIC_POS)
+	XOR A
+	LD D, A
+	LD H, A
+	LD A, (BC)
+	LD L, A
+	INC BC
+	LD A, (BC)
+	BIT 7, A
+	JP Z, L1
+	INC H
+	AND #7F
+L1	LD E, A
+	PUSH BC
+	call #03b5
+	POP BC
+	INC BC
+	LD A, (BC)
+	AND #FF
+	JR NZ, L2
+ENTRY:
+	LD BC, MUSIC
+L2:
+	LD (MUSIC_POS), BC
+	LD BC, 32768
 PAUSE_LOOP:
 	DEC BC
 	LD A, B
@@ -55,9 +82,14 @@ WAVE:
 
 WAVE_LINE_LOOP:
 	LD DE, FLAG_DATA
-	LD C, 24
-	INC HL
+	LD C, 31 ; 32 minus flag holder width
+	INC HL ; skipping "flag holder" column
 WAVE_CHAR_LOOP:
+	; skip last 7 columns since too big flag looks bad
+	LD A, C
+	SUB 6
+	JP S, PUT_COLOR_END
+	
 	LD A, (DE)
 	AND IXH
 	JR Z, PUT_COLOR2
@@ -71,16 +103,12 @@ PUT_COLOR2:
 PUT_COLOR:
 	LD (HL), A
 
+PUT_COLOR_END:
 ; going to the next char if line is not over
 	INC DE
 	INC HL
 	DEC C
 	JP NZ, WAVE_CHAR_LOOP
-
-	DUP 7
-	INC DE
-	INC HL
-	EDUP
 
 ; going to the next line until all 8 rows are printed
 	LD A, IXH
@@ -140,6 +168,8 @@ SET_HEAD_POS;
 	
 	RET
 
+BIRD	DB 22, 16, 0, 6, 'A', 'B', 13, 6, 'C', 'D'
+
 COLORS: DB COLOR_K, COLOR_W, COLOR_B, COLOR_R, COLOR_K
 FLAG_DATA:
 	DB #F0
@@ -150,4 +180,21 @@ WAVE_DATA_END:
 
 WAVE_DATA_LENGTH EQU (WAVE_DATA_END - WAVE_DATA)
 
+MUSIC:
+	DB #f9, #1e ; g3
+	DB #b3, #29 ; c4
+	DB #f9, #1e ; g3
+	DB #da, #22 ; a3
+	DB #bf, #27 ; b3
+	DB #2e, #99 ; e3
+	DB #2e, #99 ; e3 
+	DB #da, #22 ; a3
+	DB #f9, #1e ; g3
+	DB #1b, #9b ; f3
+	DB #f9, #1e ; g3
+	DB #84, #94 ; c3
+	DB 0
+MUSIC_END:
+MUSIC_LENGTH	EQU (MUSIC - MUSIC_END) / 2
+MUSIC_POS	DW 0
 	SAVESNA "main.sna", START
