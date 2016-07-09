@@ -16,7 +16,10 @@ for i in range(0, width):
 	b = ""
 	for j in range(0, 8):
 		b += "1" if pixels[j][i] != 0 else "0"
-	wave_data.append(int(b, 2) & 0x7F)
+	bt = int(b, 2) & 0x7F
+	if i%(width / 4) == 0:
+		bt = bt | 0x80
+	wave_data.append(bt)
 
 newFile = open(sys.argv[1] + ".bin", "wb")
 newFile.write(struct.pack(str(width) + 'B', *wave_data))

@@ -14,6 +14,7 @@ COLOR_K EQU 0 ; black
 
 	; black border
 	XOR A
+	LD (23624), A; BORDCR <- black border
 	OUT (#FE), A
 
 MAIN_LOOP:
@@ -28,17 +29,18 @@ MAIN_LOOP:
 	CALL WAVE ;RED/BLACK
 
 ; halt (may be replaced with real HALT)
-	
-	CALL PLAY_MUSIC
+	LD A, (WAVE_DATA)
+	AND #80
+	CALL NZ, PLAY_MUSIC
 	LD BC, 700
 PAUSE_LOOP:
 	DEC BC
 	LD A, B
 	OR C
-	JP NZ, PAUSE_LOOP
+	JR NZ, PAUSE_LOOP
 
 	CALL SCROLL_WAVE
-	JP MAIN_LOOP
+	JR MAIN_LOOP
 
 ; Print 8 wave rows
 WAVE:
@@ -49,10 +51,10 @@ WAVE_LINE_LOOP:
 	LD C, 31 ; 32 minus flag holder width
 	INC HL ; skipping "flag holder" column
 WAVE_CHAR_LOOP:
-	; skip last 7 columns since too big flag looks bad
+	; filling last 7 columns with black since too big flag looks bad
 	LD A, C
 	SUB 6
-	JP S, PUT_COLOR_END
+	JP S, PUT_BLACK
 	
 	LD A, (DE)
 	AND IXH
@@ -72,14 +74,14 @@ PUT_COLOR_END:
 	INC DE
 	INC HL
 	DEC C
-	JP NZ, WAVE_CHAR_LOOP
+	JR NZ, WAVE_CHAR_LOOP
 
 ; going to the next line until all 8 rows are printed
 	LD A, IXH
 	SRL A
 	AND #FE
 	LD IXH, A
-	JP NZ, WAVE_LINE_LOOP
+	JR NZ, WAVE_LINE_LOOP
 
 ; all done, so restore DE to the HL + 1
 	LD E, L
@@ -90,6 +92,10 @@ PUT_COLOR_END:
 	INC IY
 	
 	RET
+
+PUT_BLACK:
+	LD (HL), COLOR_K
+	JR PUT_COLOR_END
 
 SCROLL_WAVE:
 	; scrolling flag tail
@@ -112,7 +118,7 @@ INTERPOLATE_HEAD:
 	LD A, (DE) ; first byte of tail
 	
 	CP #70 ; center position, no additional shit is required
-	JP Z, SET_HEAD_POS
+	JR Z, SET_HEAD_POS
 	;CP #31 ; center position, no additional shit is required
 	;JP Z, SET_HEAD_POS
 	;CP #60 ; center position, no additional shit is required
@@ -120,11 +126,11 @@ INTERPOLATE_HEAD:
 
 	AND #0F
 	LD A, (DE) ; doing it here since this does not change any flags
-	JP NZ, FLAG_WENT_DOWN:
+	JR NZ, FLAG_WENT_DOWN:
 FLAG_WENT_UP:
 	SRL A
 	SET 6, A ; we need 6 bit to be 1 always. Kinda SRA for 7-bit bytes
-	JP SET_HEAD_POS
+	JR SET_HEAD_POS
 FLAG_WENT_DOWN:
 	SLA A
 
@@ -143,7 +149,7 @@ PLAY_MUSIC:
 	INC BC
 	LD A, (BC)
 	BIT 7, A
-	JP Z, L1
+	JR Z, L1
 	INC H
 	AND #7F
 L1	LD E, A
