@@ -1,11 +1,12 @@
 	device zxspectrum48
 START	EQU #9c40
 
-COLOR_W EQU #40 + 8 * #7
-COLOR_B EQU #40 + 8 * #1
-COLOR_R EQU #40 + 8 * #2
+COLOR_W EQU #40 + 9 * #7
+COLOR_B EQU #40 + 9 * #1
+COLOR_R EQU #40 + 9 * #2
 
 COLOR_K EQU 0 ; black
+COLOR_FLAGSHTOK EQU 9 * #7
 
 	ORG START
 	
@@ -45,12 +46,16 @@ PAUSE_LOOP:
 
 ; Print 8 wave rows
 WAVE:
-	LD IXH, #40 ; mask
+	LD B, #40 ; mask
 
 WAVE_LINE_LOOP:
+	 ; filling "flag holder" column
+	LD (HL), COLOR_FLAGSHTOK
+	INC HL
+
+	; painting the flag itself
 	LD DE, FLAG_DATA
 	LD C, 31 ; 32 minus flag holder width
-	INC HL ; skipping "flag holder" column
 WAVE_CHAR_LOOP:
 	; filling last 7 columns with black since too big flag looks bad
 	LD A, C
@@ -59,7 +64,7 @@ WAVE_CHAR_LOOP:
 	JP S, PUT_COLOR ; print black if columns 27..32
 	
 	LD A, (DE)
-	AND IXH
+	AND B
 	JR Z, PUT_COLOR2
 	
 PUT_COLOR1:
@@ -79,10 +84,9 @@ PUT_COLOR_END:
 	JR NZ, WAVE_CHAR_LOOP
 
 ; going to the next line until all 8 rows are printed
-	LD A, IXH
-	SRL A
-	AND #FE
-	LD IXH, A
+	LD A, #FE
+	SRL B
+	AND B
 	JR NZ, WAVE_LINE_LOOP
 
 ; all done, so restore DE to the HL + 1
@@ -185,6 +189,8 @@ MUSIC:
 COLORS: DB COLOR_K, COLOR_W, COLOR_B, COLOR_R, COLOR_K
 
 MUSIC_POS	DW MUSIC
-END:
-	SAVEBIN "main.bin", START, END-START
+
+	SAVEBIN "main.bin", START, $-START
+	EMPTYTRD "main.trd"
+	SAVETRD "main.trd", "flag.C", START, $-START
 	SAVESNA "main.sna", START
