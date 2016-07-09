@@ -14,8 +14,7 @@ COLOR_K EQU 0 ; black
 
 	; black border
 	XOR A
-	LD (23624), A; BORDCR <- black border
-	OUT (#FE), A
+	LD (23624), A ; BORDCR <- black border
 
 MAIN_LOOP:
 	; point HL to attributes start
@@ -32,6 +31,8 @@ MAIN_LOOP:
 	LD A, (WAVE_DATA)
 	AND #80
 	CALL NZ, PLAY_MUSIC
+
+; pause (HALT makes much longer delay) 
 	LD BC, 700
 PAUSE_LOOP:
 	DEC BC
@@ -44,7 +45,7 @@ PAUSE_LOOP:
 
 ; Print 8 wave rows
 WAVE:
-	LD IXH, #40
+	LD IXH, #40 ; mask
 
 WAVE_LINE_LOOP:
 	LD DE, FLAG_DATA
@@ -54,7 +55,8 @@ WAVE_CHAR_LOOP:
 	; filling last 7 columns with black since too big flag looks bad
 	LD A, C
 	SUB 6
-	JP S, PUT_BLACK
+	LD A, COLOR_K ; needed only if jumpin' (size optimization) 
+	JP S, PUT_COLOR ; print black if columns 27..32
 	
 	LD A, (DE)
 	AND IXH
@@ -93,10 +95,6 @@ PUT_COLOR_END:
 	
 	RET
 
-PUT_BLACK:
-	LD (HL), COLOR_K
-	JR PUT_COLOR_END
-
 SCROLL_WAVE:
 	; scrolling flag tail
 	LD HL, WAVE_DATA + WAVE_DATA_LENGTH - 2
@@ -109,8 +107,7 @@ SCROLL_WAVE_END:
 	LD (DE), A
 	
 	; calculating flag head
-	LD HL, WAVE_DATA - 1 ; last byte of head
-	LD DE, WAVE_DATA
+	LD DE, WAVE_DATA ; first byte of head
 
 ; first flag column is constant
 ; second flag column is in intermediate position between waving part and the constant part
@@ -119,10 +116,6 @@ INTERPOLATE_HEAD:
 	
 	CP #70 ; center position, no additional shit is required
 	JR Z, SET_HEAD_POS
-	;CP #31 ; center position, no additional shit is required
-	;JP Z, SET_HEAD_POS
-	;CP #60 ; center position, no additional shit is required
-	;JP Z, SET_HEAD_POS
 
 	AND #0F
 	LD A, (DE) ; doing it here since this does not change any flags
@@ -135,7 +128,8 @@ FLAG_WENT_DOWN:
 	SLA A
 
 SET_HEAD_POS;
-	LD (HL), A
+	DEC DE ; DE now is first last byte of head
+	LD (DE), A
 	
 	RET
 
@@ -158,14 +152,13 @@ L1	LD E, A
 	POP BC
 	INC BC
 	LD A, (BC)
-	AND #FF
+	CP COLOR_K ; check that music is over and we pointing to COLORS array
 	JR NZ, L2
 	LD BC, MUSIC
 L2:
 	LD (MUSIC_POS), BC
 	RET
 
-COLORS: DB COLOR_K, COLOR_W, COLOR_B, COLOR_R, COLOR_K
 FLAG_DATA:
 	DB #F0
 	DB 0
@@ -188,7 +181,10 @@ MUSIC:
 	DB #1b, #9b ; f3
 	DB #f9, #1e ; g3
 	DB #84, #94 ; c3
-	DB 0
+
+COLORS: DB COLOR_K, COLOR_W, COLOR_B, COLOR_R, COLOR_K
 
 MUSIC_POS	DW MUSIC
+END:
+	SAVEBIN "main.bin", START, END-START
 	SAVESNA "main.sna", START
