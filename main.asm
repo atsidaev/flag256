@@ -9,12 +9,6 @@ COLOR_K EQU 0 ; black
 
 	ORG START
 	
-
-	;ld	hl, #060C
-	;ld	de, #0114
-	;call	#03b5
-	;JP START
-	
 	di
 	LD SP, #FFFF
 
@@ -22,14 +16,6 @@ COLOR_K EQU 0 ; black
 	XOR A
 	OUT (#FE), A
 
-	; channel 2 for print
-	;CALL #0D6B
-	LD A, 2
-	CALL #1601
-	LD DE, BIRD
-	LD BC, 10
-	CALL #203C ; PR-STRING
-	JR ENTRY
 MAIN_LOOP:
 	; point HL to attributes start
 	ld hl, 16384 + 6144
@@ -42,31 +28,9 @@ MAIN_LOOP:
 	CALL WAVE ;RED/BLACK
 
 ; halt (may be replaced with real HALT)
-	LD BC, (MUSIC_POS)
-	XOR A
-	LD D, A
-	LD H, A
-	LD A, (BC)
-	LD L, A
-	INC BC
-	LD A, (BC)
-	BIT 7, A
-	JP Z, L1
-	INC H
-	AND #7F
-L1	LD E, A
-	PUSH BC
-	call #03b5
-	POP BC
-	INC BC
-	LD A, (BC)
-	AND #FF
-	JR NZ, L2
-ENTRY:
-	LD BC, MUSIC
-L2:
-	LD (MUSIC_POS), BC
-	LD BC, 32768
+	
+	CALL PLAY_MUSIC
+	LD BC, 700
 PAUSE_LOOP:
 	DEC BC
 	LD A, B
@@ -147,18 +111,19 @@ SCROLL_WAVE_END:
 INTERPOLATE_HEAD:
 	LD A, (DE) ; first byte of tail
 	
-	CP #F0 ; center position, no additional shit is required
+	CP #70 ; center position, no additional shit is required
 	JP Z, SET_HEAD_POS
-	CP #71 ; center position, no additional shit is required
-	JP Z, SET_HEAD_POS
-	CP #E0 ; center position, no additional shit is required
-	JP Z, SET_HEAD_POS
+	;CP #31 ; center position, no additional shit is required
+	;JP Z, SET_HEAD_POS
+	;CP #60 ; center position, no additional shit is required
+	;JP Z, SET_HEAD_POS
 
 	AND #0F
 	LD A, (DE) ; doing it here since this does not change any flags
 	JP NZ, FLAG_WENT_DOWN:
 FLAG_WENT_UP:
-	SRA A
+	SRL A
+	SET 6, A ; we need 6 bit to be 1 always. Kinda SRA for 7-bit bytes
 	JP SET_HEAD_POS
 FLAG_WENT_DOWN:
 	SLA A
@@ -168,7 +133,31 @@ SET_HEAD_POS;
 	
 	RET
 
-BIRD	DB 22, 16, 0, 6, 'A', 'B', 13, 6, 'C', 'D'
+PLAY_MUSIC:
+	LD BC, (MUSIC_POS)
+	XOR A
+	LD D, A
+	LD H, A
+	LD A, (BC)
+	LD L, A
+	INC BC
+	LD A, (BC)
+	BIT 7, A
+	JP Z, L1
+	INC H
+	AND #7F
+L1	LD E, A
+	PUSH BC
+	call #03b5
+	POP BC
+	INC BC
+	LD A, (BC)
+	AND #FF
+	JR NZ, L2
+	LD BC, MUSIC
+L2:
+	LD (MUSIC_POS), BC
+	RET
 
 COLORS: DB COLOR_K, COLOR_W, COLOR_B, COLOR_R, COLOR_K
 FLAG_DATA:
@@ -194,7 +183,6 @@ MUSIC:
 	DB #f9, #1e ; g3
 	DB #84, #94 ; c3
 	DB 0
-MUSIC_END:
-MUSIC_LENGTH	EQU (MUSIC - MUSIC_END) / 2
-MUSIC_POS	DW 0
+
+MUSIC_POS	DW MUSIC
 	SAVESNA "main.sna", START
