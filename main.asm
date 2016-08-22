@@ -126,7 +126,7 @@ INTERPOLATE_HEAD:
 	JR NZ, FLAG_WENT_DOWN:
 FLAG_WENT_UP:
 	SRL A
-	SET 6, A ; we need 6 bit to be 1 always. Kinda SRA for 7-bit bytes
+	SET 6, A ; we need 6th bit to be 1 always. Kinda SRA for 7-bit bytes
 	JR SET_HEAD_POS
 FLAG_WENT_DOWN:
 	SLA A
@@ -138,7 +138,7 @@ SET_HEAD_POS;
 	RET
 
 PLAY_MUSIC:
-	LD BC, (MUSIC_POS)
+	LD BC, MUSIC ; argument will be modifyed during execution
 	XOR A
 	LD D, A
 	LD H, A
@@ -160,7 +160,7 @@ L1	LD E, A
 	JR NZ, L2
 	LD BC, MUSIC
 L2:
-	LD (MUSIC_POS), BC
+	LD (MUSIC_POS), BC ; self-modifying the procedure
 	RET
 
 FLAG_DATA:
@@ -188,7 +188,7 @@ MUSIC:
 
 COLORS: DB COLOR_K, COLOR_W, COLOR_B, COLOR_R, COLOR_K
 
-MUSIC_POS	DW MUSIC
+MUSIC_POS	EQU PLAY_MUSIC + 1 ; position of argument of LD BC, NN command
 
 	SAVEBIN "main.bin", START, $-START
 	EMPTYTRD "main.trd"
