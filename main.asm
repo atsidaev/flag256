@@ -1,5 +1,5 @@
 	device zxspectrum48
-START	EQU #9c40
+START	EQU 23760
 
 COLOR_W EQU #40 + 9 * #7
 COLOR_B EQU #40 + 9 * #1
