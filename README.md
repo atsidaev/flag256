@@ -1,5 +1,5 @@
 # flag256 (for ZX Spectrum)
-##Russian flag+hymn intro in 256 bytes
+## Russian flag+hymn intro in 256 bytes 
 2nd place on Chaos Constructions'2016 compo ZX Spectrum Tiny Intro 
 
 Created with sjasmplus and little python script for png-to-bin conversion.  
